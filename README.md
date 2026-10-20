@@ -1,6 +1,6 @@
 # Task Management API
 
-Simple REST API for tasks, built with Node.js + Express, in-memory storage.
+Simple CRUD API for tasks. Node + Express, data kept in memory.
 
 ## Run
 
@@ -9,53 +9,54 @@ npm install
 npm start
 ```
 
-Server: http://localhost:3000
+Runs on http://localhost:3000
 
-## Endpoints
+## Routes
 
-| Method | Route             | Description     |
-|--------|-------------------|-----------------|
-| POST   | /api/tasks        | Create a task   |
-| GET    | /api/tasks        | Get all tasks   |
-| GET    | /api/tasks/:id    | Get task by ID  |
-| PUT    | /api/tasks/:id    | Update a task   |
-| DELETE | /api/tasks/:id    | Delete a task   |
+| Method | Route | What it does |
+|--------|-------|--------------|
+| POST | /api/tasks | create a task |
+| GET | /api/tasks | list all tasks |
+| GET | /api/tasks/:id | get one task |
+| PUT | /api/tasks/:id | update a task |
+| DELETE | /api/tasks/:id | delete a task |
 
-Task shape: `id`, `title`, `description`, `status` (`pending` | `in_progress` | `done`), `created_at`.
+A task has `id`, `title`, `description`, `status` (pending / in_progress / done) and `created_at`.
+
+## Examples
+
+```bash
+curl -X POST localhost:3000/api/tasks -H "Content-Type: application/json" -d '{"title":"Design schema","description":"Tables for users and tasks"}'
+curl localhost:3000/api/tasks
+curl -X PUT localhost:3000/api/tasks/1 -H "Content-Type: application/json" -d '{"status":"done"}'
+curl -X DELETE localhost:3000/api/tasks/1
+```
+
+Validation returns 400 with a message — empty title, unknown status, or a non-numeric id. Missing task gives 404.
 
 ## Structure
 
 ```
 src/
-  app.js                 express app + routes mounting
-  server.js              entry point
-  routes/task.routes.js  route definitions
-  controllers/           request handlers
-  models/task.model.js   in-memory store
-  middleware/validate.js request validation
+  server.js      entry point
+  app.js         express setup
+  routes/        route definitions
+  controllers/   handlers
+  models/        in-memory store
+  middleware/    validation
 ```
 
-## Sample requests
+## Notes on building this with an AI agent
 
-```bash
-curl -X POST localhost:3000/api/tasks -H "Content-Type: application/json" -d '{"title":"Write assignment","description":"Backend via AI agent"}'
-curl localhost:3000/api/tasks
-curl localhost:3000/api/tasks/1
-curl -X PUT localhost:3000/api/tasks/1 -H "Content-Type: application/json" -d '{"status":"done"}'
-curl -X DELETE localhost:3000/api/tasks/1
-```
+I built it step by step instead of asking for the whole thing at once: first the folder
+structure, then the task model, then controllers and routes, then validation, and finally
+had it run the server and test every endpoint with curl.
 
-## Note on using the AI agent
+That worked well. The CRUD logic was right the first time and keeping each prompt to one
+layer kept the files small.
 
-**Prompts used** — I worked step by step instead of asking for everything at once:
-1. "Create a clean project structure for a Task Management API in Express with routes/controllers/models/middleware folders."
-2. "Generate the task model with id, title, description, status, created_at using an in-memory store."
-3. "Create the controller and routes for the five CRUD endpoints."
-4. "Add request validation: title required and non-empty, status restricted to an allowed list, id must be a positive integer."
-5. "Run it locally and test every endpoint with curl, including the error cases."
-
-**What worked well** — The agent produced the folder layout and CRUD logic correctly on the first pass, and splitting the work into model → controller → routes → validation kept each file small and focused. Asking it to run the server and curl every endpoint gave immediate proof the code actually works.
-
-**Issues faced** — The first draft put validation inline in the controllers and allowed any string as `status`, which made the controllers noisy. ID handling also accepted non-numeric values and silently returned 404 instead of a clear 400.
-
-**How I improved the output** — I asked the agent to pull validation into dedicated middleware, define the allowed statuses in one place (`STATUSES` in the model) and reuse it, and add an `validateId` middleware returning 400 for malformed IDs. I also had it confirm PUT only applies the fields actually sent, so a partial update does not wipe other fields.
+Two things needed fixing. Validation started out inline in the controllers, and the status
+field accepted any string, so I asked for it to be moved into middleware with the allowed
+statuses defined once in the model. IDs like `/api/tasks/abc` also fell through to a 404
+instead of a 400, so I added an id check. I also made sure PUT only updates the fields you
+actually send, otherwise a partial update wiped the rest.
